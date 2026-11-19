@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentClaim — Claims exclusively for Agent ID holders</title>
+<meta name="description" content="AgentClaim is a claim hub on BNB Smart Chain where only Agent ID holders can claim. Projects create token claim campaigns without writing contracts; every claim is gated on-chain by Agent ID ownership.">
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#12161f; --panel2:#171c28; --line:#232a3a;
+    --txt:#e8ecf4; --dim:#9aa5bb; --accent:#4dd8ff; --accent2:#2ea8cf;
+    --green:#3ddc84; --red:#ff6b6b; --amber:#f5b83d;
+    --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{color-scheme:dark}
+  body{background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.55}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1020px;margin:0 auto;padding:0 20px 64px}
+  header{padding:52px 0 8px;text-align:center}
+  .logo{width:84px;height:84px;margin:0 auto;border-radius:22px;border:1px solid var(--line);background:linear-gradient(135deg,#123043,var(--panel2));display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:34px;font-weight:700;color:var(--accent)}
+  h1{font-family:var(--mono);font-size:clamp(34px,6vw,54px);letter-spacing:2px;margin-top:20px}
+  h1 .accent{color:var(--accent)}
+  .tag{color:var(--dim);max-width:640px;margin:10px auto 0;font-size:17px}
+  .badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+  .badge{font-family:var(--mono);font-size:12px;padding:5px 11px;border:1px solid var(--line);border-radius:999px;color:var(--dim);background:var(--panel)}
+  .badge.hot{color:#0b0e14;background:var(--accent);border-color:var(--accent);font-weight:700}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:36px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 14px;text-align:center}
+  .stat .num{font-family:var(--mono);font-size:30px;font-weight:700}
+  .stat .lbl{color:var(--dim);font-size:12.5px;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+  .bar{height:10px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;margin-top:14px;overflow:hidden}
+  .bar > div{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));width:0%;transition:width .8s ease}
+  .bar-note{color:var(--dim);font-size:13px;text-align:center;margin-top:8px;font-family:var(--mono)}
+  section{margin-top:44px}
+  h2{font-family:var(--mono);font-size:21px;letter-spacing:1px;margin-bottom:14px}
+  h2::before{content:'// ';color:var(--accent)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .center{text-align:center}
+  button{font-family:var(--mono);font-size:15px;font-weight:700;padding:12px 26px;border-radius:10px;border:0;cursor:pointer;background:var(--accent);color:#0b0e14;margin-top:14px}
+  button:disabled{background:#39415a;color:#8b96ad;cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  button.small{padding:9px 18px;font-size:13.5px;margin-top:10px}
+  .status{font-family:var(--mono);font-size:13.5px;color:var(--dim);margin-top:14px;min-height:20px;word-break:break-word}
+  .status.ok{color:var(--green)} .status.err{color:var(--red)}
+  .elig{font-family:var(--mono);font-size:16px;margin-top:8px}
+  .elig .yes{color:var(--green)} .elig .no{color:var(--red)}
+  .note{color:var(--dim);font-size:14px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .card h3{font-family:var(--mono);font-size:17px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .pill{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+  .pill.active{color:#0b0e14;background:var(--green);border-color:var(--green);font-weight:700}
+  .pill.upcoming{color:var(--amber);border-color:var(--amber)}
+  .pill.ended,.pill.settled{color:var(--dim)}
+  .pill.cancelled{color:var(--red);border-color:var(--red)}
+  .kv{font-family:var(--mono);font-size:13.5px;margin-top:12px}
+  .kv .r{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .kv .r:last-child{border-bottom:0}
+  .kv .k{color:var(--dim)} .kv .v{text-align:right;word-break:break-all}
+  form .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  label{display:block;font-family:var(--mono);font-size:12.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+  input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:9px;color:var(--txt);padding:11px 12px;font-family:var(--mono);font-size:14.5px}
+  input:focus{outline:none;border-color:var(--accent)}
+  .warn{border:1px solid var(--amber);color:var(--amber);border-radius:10px;padding:12px 14px;font-size:13.5px;margin-top:16px;font-family:var(--mono)}
+  .rows{font-family:var(--mono);font-size:14px}
+  .rows .r{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .rows .r:last-child{border-bottom:0}
+  .rows .k{color:var(--dim)} .rows .v{text-align:right;word-break:break-all}
+  .links{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;justify-content:flex-end}
+  .links a{display:inline-block;padding:6px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-family:var(--mono);font-size:12.5px;color:var(--txt)}
+  .links a:hover{border-color:var(--accent);text-decoration:none}
+  ul.perms{margin:10px 0 0 18px;color:var(--dim);font-size:14px}
+  ul.perms li{margin:5px 0}
+  .empty{color:var(--dim);font-family:var(--mono);font-size:14px;text-align:center;padding:26px 10px;border:1px dashed var(--line);border-radius:14px}
+  footer{margin-top:52px;text-align:center;color:var(--dim);font-size:13px;font-family:var(--mono)}
+  .head-actions{margin-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">AC</div>
+    <h1>AGENT<span class="accent">CLAIM</span></h1>
+    <p class="tag">Claims exclusively for Agent ID holders. Projects create token claim campaigns here without writing a single contract — and every claim is gated on-chain: if your wallet does not hold an Agent ID, the contract itself says no. One person, one Agent ID, no bot farms.</p>
+    <div class="badges">
+      <span class="badge">Network: BNB Smart Chain</span>
+      <span class="badge">Gate: Agent ID ownership, checked on-chain</span>
+      <span class="badge hot">Launch campaign: Pioneer Badge</span>
+    </div>
+    <div class="head-actions">
+      <button id="btnConnectTop">Connect wallet</button>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="num" id="stCampaigns">…</div><div class="lbl">Campaigns</div></div>
+    <div class="stat"><div class="num" id="stClaims">…</div><div class="lbl">Total claims</div></div>
+    <div class="stat"><div class="num" id="stUnique">…</div><div class="lbl">Unique claimers</div></div>
+    <div class="stat"><div class="num" id="stBadges">…</div><div class="lbl">Badges claimed</div></div>
+  </div>
+  <div class="bar-note" id="statsNote">reading the contracts…</div>
+
+  <section>
+    <h2>Your wallet</h2>
+    <div class="panel center">
+      <div class="elig" id="eligLine">Wallet not connected.</div>
+      <div class="status" id="walletStatus">Connect your wallet to see whether it holds an Agent ID and to claim. All figures on this page are read live from the contracts — nothing is typed by hand.</div>
+      <div>
+        <button id="btnConnect">Connect wallet</button>
+      </div>
+      <p class="note" style="margin-top:14px">No Agent ID yet? An Agent ID (your <span style="font-family:var(--mono)">name.ai</span>) is claimed inside the Binance app — open the app, find the Agent ID banner, and claim your name there. Then come back and connect the same wallet.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Pioneer Badge</h2>
+    <div class="panel center">
+      <div style="font-family:var(--mono);font-size:20px">AgentClaim Pioneer Badge <span style="color:var(--dim)">(ACPB)</span></div>
+      <p class="note" style="max-width:560px;margin:8px auto 0">The launch campaign of AgentClaim: a free participation badge for the first Agent ID holders who claim here. 1 per wallet, hard cap of 500, first come first served.</p>
+      <div class="bar"><div id="badgeBar"></div></div>
+      <div class="bar-note" id="badgeNote">reading the badge contract…</div>
+      <div>
+        <button id="btnBadge" disabled>Loading…</button>
+      </div>
+      <div class="status" id="badgeStatus"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Claim campaigns</h2>
+    <div id="campaignList"><div class="empty">reading campaigns from the hub…</div></div>
+    <div style="text-align:center">
+      <button class="ghost small" id="btnRefresh">Refresh</button>
+    </div>
+    <div class="status center" id="campaignStatus" style="text-align:center"></div>
+  </section>
+
+  <section>
+    <h2>Create a campaign</h2>
+    <div class="panel">
+      <p class="note">Distribute your ERC-20 token to Agent ID holders only — no contract writing needed. You set the token, the amount per claim, the total allocation, and the claim window. Only wallets holding an Agent ID will be able to claim, up to the per-wallet limit.</p>
+      <form id="createForm" style="margin-top:18px">
+        <div class="grid">
+          <div>
+            <label for="fToken">Token contract address</label>
+            <input id="fToken" placeholder="0x…" autocomplete="off" spellcheck="false">
+          </div>
+          <div>
+            <label for="fPerClaim">Amount per claim</label>
+            <input id="fPerClaim" placeholder="e.g. 100" inputmode="decimal" autocomplete="off">
+          </div>
+          <div>
+            <label for="fTotal">Total allocation</label>
+            <input id="fTotal" placeholder="e.g. 10000" inputmode="decimal" autocomplete="off">
+          </div>
+          <div>
+            <label for="fLimit">Per-wallet limit</label>
+            <input id="fLimit" type="number" min="1" step="1" value="1">
+          </div>
+          <div>
+            <label for="fStart">Start (your local time)</label>
+            <input id="fStart" type="datetime-local">
+          </div>
+          <div>
+            <label for="fEnd">End (your local time)</label>
+            <input id="fEnd" type="datetime-local">
+          </div>
+        </div>
+        <div class="status" id="tokenInfo"></div>
+        <div class="warn">Warning: creating a campaign pulls the full total allocation from your wallet into the hub contract (you will approve the exact amount first). The allocation can only ever leave the hub as claims to Agent ID holders, back to you if you cancel before the start, or back to you as the unclaimed remainder after the campaign ends.</div>
+        <div class="center">
+          <button type="submit" id="btnCreate">Create campaign</button>
+        </div>
+        <div class="status center" id="createStatus" style="text-align:center"></div>
+      </form>
+    </div>
+  </section>
+
+  <section>
+    <h2>My claims</h2>
+    <div class="panel rows" id="myClaims">
+      <div class="empty" style="border:0;padding:6px">Connect your wallet to see your claims.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Transparency</h2>
+    <div class="panel rows">
+      <div class="r">
+        <span class="k">AgentClaimHub</span>
+        <span class="v">0x1d3665da429D876f66e63e782BBdF7e22EbFbB0d
+          <span class="links">
+            <a href="https://bscscan.com/address/0x1d3665da429D876f66e63e782BBdF7e22EbFbB0d" target="_blank" rel="noopener">BscScan</a>
+            <a href="https://sourcify.dev/#/lookup/0x1d3665da429D876f66e63e782BBdF7e22EbFbB0d" target="_blank" rel="noopener">Sourcify</a>
+          </span>
+        </span>
+      </div>
+      <div class="r">
+        <span class="k">AgentBadge (ACPB)</span>
+        <span class="v">0x6BE9e81145628a42Bd9BC005960Ce96D8B73409c
+          <span class="links">
+            <a href="https://bscscan.com/address/0x6BE9e81145628a42Bd9BC005960Ce96D8B73409c" target="_blank" rel="noopener">BscScan</a>
+            <a href="https://sourcify.dev/#/lookup/0x6BE9e81145628a42Bd9BC005960Ce96D8B73409c" target="_blank" rel="noopener">Sourcify</a>
+          </span>
+        </span>
+      </div>
+      <div class="r">
+        <span class="k">Agent ID registry (official)</span>
+        <span class="v">0x60b9262456de011f7d15a54cdd8c48baaa8b022f
+          <span class="links">
+            <a href="https://bscscan.com/address/0x60b9262456de011f7d15a54cdd8c48baaa8b022f" target="_blank" rel="noopener">BscScan</a>
+          </span>
+        </span>
+      </div>
+      <div class="r"><span class="k">Eligibility rule</span><span class="v">registry.balanceOf(wallet) &gt; 0, checked inside every claim transaction</span></div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <div style="font-family:var(--mono);font-size:15px">Owner permissions — the complete list</div>
+      <ul class="perms">
+        <li><b>AgentClaimHub has no owner at all.</b> No pause switch, no fees, no admin withdrawal. Tokens can only leave the hub three ways: as a claim paid to an eligible Agent ID holder, as a full refund to a campaign's creator who cancels before the campaign starts, or as the unclaimed remainder returned to the creator after the campaign ends (anyone may trigger that settle).</li>
+        <li><b>AgentBadge:</b> the owner may only open or close badge claims, and set the metadata base URI — and the base URI locks forever once claims have ever been opened. There is no owner mint function; badges can only come into existence through <span style="font-family:var(--mono)">claimBadge()</span> by an eligible wallet.</li>
+        <li>Every number on this page is a public contract read. Verify them yourself on BscScan or Sourcify — the source code of both contracts is verified and open.</li>
+      </ul>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <div style="font-family:var(--mono);font-size:15px">Disclaimers</div>
+      <p class="note" style="margin-top:8px">The Pioneer Badge is a participation collectible, not an investment. Nothing on this page promises returns. Campaign tokens are distributed by their own creators under their own responsibility; AgentClaim provides the gating tool, not an endorsement of any campaign.</p>
+      <p class="note" style="margin-top:8px">Smart contracts are experimental software and interacting with them carries risk, including the possible loss of funds. Always verify the contract address and the transaction details inside your own wallet before confirming. This page will never ask for your seed phrase, private key, or any pairing code — anyone who does is trying to scam you.</p>
+    </div>
+  </section>
+
+  <footer>AgentClaim · claims exclusively for Agent ID holders · all stats read live from BNB Smart Chain</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<script>
+const HUB    = '0x1d3665da429D876f66e63e782BBdF7e22EbFbB0d';
+const BADGE  = '0x6BE9e81145628a42Bd9BC005960Ce96D8B73409c';
+const REGISTRY = '0x60b9262456de011f7d15a54cdd8c48baaa8b022f';
+const RPC_URLS = [
+  'https://bsc-dataseed.binance.org',
+  'https://bsc-dataseed1.binance.org',
+  'https://bsc-dataseed2.binance.org',
+  'https://bsc-rpc.publicnode.com',
+  'https://rpc-bsc.48.club'
+];
+
+const HUB_ABI = [
+  'function campaignCount() view returns (uint256)',
+  'function getCampaign(uint256 campaignId) view returns (tuple(address creator, address token, uint256 amountPerClaim, uint256 totalAllocation, uint256 claimedCount, uint256 startTime, uint256 endTime, uint256 perWalletLimit, bool cancelled, bool settled))',
+  'function claimedBy(uint256 campaignId, address wallet) view returns (uint256)',
+  'function totalClaimEvents() view returns (uint256)',
+  'function uniqueClaimers() view returns (uint256)',
+  'function holdsAgentId(address w) view returns (bool)',
+  'function createCampaign(address token, uint256 amountPerClaim, uint256 totalAllocation, uint256 startTime, uint256 endTime, uint256 perWalletLimit) returns (uint256)',
+  'function claim(uint256 campaignId)'
+];
+const BADGE_ABI = [
+  'function totalSupply() view returns (uint256)',
+  'function MAX_SUPPLY() view returns (uint256)',
+  'function claimOpen() view returns (bool)',
+  'function claimBadge()',
+  'function hasClaimedBadge(address) view returns (bool)',
+  'function holdsAgentId(address w) view returns (bool)'
+];
+const REGISTRY_ABI = [ 'function balanceOf(address owner) view returns (uint256)' ];
+const ERC20_ABI = [
+  'function symbol() view returns (string)',
+  'function decimals() view returns (uint8)',
+  'function balanceOf(address) view returns (uint256)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function approve(address spender, uint256 amount) returns (bool)'
+];
+
+const $ = id => document.getElementById(id);
+const shortAddr = a => a ? a.slice(0,6) + '…' + a.slice(-4) : '—';
+const fmtInt = n => Number(n).toLocaleString('en-US');
+function trimNum(s){
+  if(!s.includes('.')) return s;
+  return s.replace(/0+$/,'').replace(/\.$/,'');
+}
+const fmtAmt = (raw, dec) => trimNum(ethers.formatUnits(raw, dec));
+const fmtUTC = ts => new Date(Number(ts) * 1000).toLocaleString('en-GB', {
+  timeZone:'UTC', day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'
+}) + ' UTC';
+
+function errMsg(e){
+  if(!e) return 'Unknown error.';
+  if(e.code === 'ACTION_REJECTED' || e.code === 4001) return 'Rejected in your wallet.';
+  if(e.reason) return 'Reverted: ' + e.reason;
+  const raw = (e.info && e.info.error && e.info.error.message) || e.shortMessage || e.message || '';
+  const m = /execution reverted(?::\s*"?([^"]+?)"?\s*$)?/i.exec(raw);
+  if(m) return m[1] ? ('Reverted: ' + m[1]) : 'Transaction reverted on-chain.';
+  return raw.slice(0, 200) || 'Transaction failed.';
+}
+
+// ---- read provider (public RPC, failover) ----
+const readProvider = new ethers.FallbackProvider(
+  RPC_URLS.map(u => new ethers.JsonRpcProvider(u, 56, { staticNetwork: true })),
+  56, { quorum: 1 }
+);
+const hubRead   = new ethers.Contract(HUB, HUB_ABI, readProvider);
+const badgeRead = new ethers.Contract(BADGE, BADGE_ABI, readProvider);
+const regRead   = new ethers.Contract(REGISTRY, REGISTRY_ABI, readProvider);
+
+// ---- state ----
+let account = null, signer = null, browserProvider = null;
+let eligible = null;             // null = unknown, true/false after read
+let campaigns = [];              // [{id, data, meta}]
+let myClaimCounts = {};          // campaignId -> bigint
+let badgeState = null;           // {total, max, open, claimed}
+const metaCache = {};
+
+async function tokenMeta(addr){
+  const key = addr.toLowerCase();
+  if(metaCache[key]) return metaCache[key];
+  const c = new ethers.Contract(addr, ERC20_ABI, readProvider);
+  let symbol = shortAddr(addr), decimals = 18;
+  try { symbol = await c.symbol(); } catch(e) { /* keep fallback */ }
+  try { decimals = Number(await c.decimals()); } catch(e) { /* keep 18 */ }
+  metaCache[key] = { symbol, decimals };
+  return metaCache[key];
+}
+
+function campaignStatus(c){
+  const now = Math.floor(Date.now() / 1000);
+  if(c.cancelled) return ['cancelled', 'Cancelled'];
+  if(c.settled)   return ['settled', 'Settled'];
+  if(now < Number(c.startTime)) return ['upcoming', 'Upcoming'];
+  if(now <= Number(c.endTime)) return ['active', 'Active'];
+  return ['ended', 'Ended'];
+}
+
+// ---- public data ----
+async function loadStats(){
+  try{
+    const [count, events, unique, bTotal, bMax] = await Promise.all([
+      hubRead.campaignCount(), hubRead.totalClaimEvents(), hubRead.uniqueClaimers(),
+      badgeRead.totalSupply(), badgeRead.MAX_SUPPLY()
+    ]);
+    $('stCampaigns').textContent = fmtInt(count);
+    $('stClaims').textContent = fmtInt(events);
+    $('stUnique').textContent = fmtInt(unique);
+    $('stBadges').textContent = fmtInt(bTotal) + ' / ' + fmtInt(bMax);
+    $('statsNote').textContent = 'live from the contracts · auto-refreshes every 60s';
+  }catch(e){
+    $('statsNote').textContent = 'could not reach a BSC RPC — refresh to retry';
+  }
+}
+
+async function loadBadge(){
+  try{
+    const [total, max, open] = await Promise.all([
+      badgeRead.totalSupply(), badgeRead.MAX_SUPPLY(), badgeRead.claimOpen()
+    ]);
+    badgeState = { total, max, open, claimed: badgeState ? badgeState.claimed : null };
+    if(account){
+      badgeState.claimed = await badgeRead.hasClaimedBadge(account);
+    }
+    $('badgeBar').style.width = (Number(total) / Number(max) * 100).toFixed(1) + '%';
+    $('badgeNote').textContent = fmtInt(total) + ' of ' + fmtInt(max) + ' badges claimed · claims are ' + (open ? 'OPEN' : 'not open yet');
+    renderBadgeButton();
+  }catch(e){
+    $('badgeNote').textContent = 'could not reach a BSC RPC — refresh to retry';
+  }
+}
+
+function renderBadgeButton(){
+  const btn = $('btnBadge'), st = $('badgeStatus');
+  if(!badgeState){ btn.disabled = true; btn.textContent = 'Loading…'; return; }
+  if(!badgeState.open){
+    btn.disabled = true; btn.textContent = 'Claims open soon';
+    st.className = 'status';
+    st.textContent = 'Badge claims are not open yet. Follow the launch announcement — when claims open, eligible Agent ID holders can claim here, free.';
+    return;
+  }
+  if(badgeState.total >= badgeState.max){
+    btn.disabled = true; btn.textContent = 'Sold out';
+    st.className = 'status'; st.textContent = 'All 500 Pioneer Badges have been claimed.';
+    return;
+  }
+  if(!account){
+    btn.disabled = true; btn.textContent = 'Connect wallet to claim';
+    st.className = 'status'; st.textContent = 'Badge claims are open. Connect an eligible wallet to claim yours.';
+    return;
+  }
+  if(badgeState.claimed){
+    btn.disabled = true; btn.textContent = 'Badge claimed ✓';
+    st.className = 'status ok'; st.textContent = 'This wallet has already claimed its Pioneer Badge (1 per wallet).';
+    return;
+  }
+  if(eligible === false){
+    btn.disabled = true; btn.textContent = 'Agent ID required';
+    st.className = 'status err'; st.textContent = 'This wallet does not hold an Agent ID, so it cannot claim the badge.';
+    return;
+  }
+  btn.disabled = false; btn.textContent = 'Claim your Pioneer Badge — free';
+  st.className = 'status'; st.textContent = 'Free claim — you only pay the network gas fee.';
+}
+
+async function loadCampaigns(){
+  const list = $('campaignList');
+  try{
+    const count = Number(await hubRead.campaignCount());
+    const items = [];
+    for(let i = 0; i < count; i++){
+      const data = await hubRead.getCampaign(i);
+      const meta = await tokenMeta(data.token);
+      items.push({ id: i, data, meta });
+    }
+    campaigns = items;
+    if(account){
+      const counts = await Promise.all(items.map(it => hubRead.claimedBy(it.id, account)));
+      myClaimCounts = {};
+      items.forEach((it, i) => { myClaimCounts[it.id] = counts[i]; });
+    }
+    renderCampaigns();
+    renderMyClaims();
+  }catch(e){
+    list.innerHTML = '<div class="empty">could not reach a BSC RPC — use Refresh to retry</div>';
+  }
+}
+
+function renderCampaigns(){
+  const list = $('campaignList');
+  if(!campaigns.length){
+    list.innerHTML = '<div class="empty">No campaigns yet. The Pioneer Badge above is the launch campaign — the first token campaign created here will appear in this list.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'cards';
+  campaigns.forEach(it => {
+    const c = it.data, m = it.meta;
+    const [cls, label] = campaignStatus(c);
+    const paidOut = c.claimedCount * c.amountPerClaim;
+    const remaining = c.totalAllocation - paidOut;
+    const mine = account ? (myClaimCounts[it.id] ?? 0n) : null;
+    const card = document.createElement('div');
+    card.className = 'card';
+    let claimBtn = '';
+    if(cls === 'active'){
+      if(!account) claimBtn = '<button class="small" disabled>Connect wallet to claim</button>';
+      else if(eligible === false) claimBtn = '<button class="small" disabled>Agent ID required</button>';
+      else if(mine !== null && mine >= c.perWalletLimit) claimBtn = '<button class="small" disabled>Limit reached (' + mine.toString() + '/' + c.perWalletLimit.toString() + ')</button>';
+      else if(remaining < c.amountPerClaim) claimBtn = '<button class="small" disabled>Allocation exhausted</button>';
+      else claimBtn = '<button class="small" data-claim="' + it.id + '">Claim ' + fmtAmt(c.amountPerClaim, m.decimals) + ' ' + m.symbol + '</button>';
+    }
+    card.innerHTML =
+      '<h3><span>#' + it.id + ' · ' + m.symbol + '</span><span class="pill ' + cls + '">' + label + '</span></h3>' +
+      '<div class="kv">' +
+        '<div class="r"><span class="k">Token</span><span class="v">' + shortAddr(c.token) + '</span></div>' +
+        '<div class="r"><span class="k">Per claim</span><span class="v">' + fmtAmt(c.amountPerClaim, m.decimals) + ' ' + m.symbol + '</span></div>' +
+        '<div class="r"><span class="k">Remaining</span><span class="v">' + fmtAmt(remaining, m.decimals) + ' / ' + fmtAmt(c.totalAllocation, m.decimals) + ' ' + m.symbol + '</span></div>' +
+        '<div class="r"><span class="k">Claims so far</span><span class="v">' + fmtInt(c.claimedCount) + '</span></div>' +
+        '<div class="r"><span class="k">Per-wallet limit</span><span class="v">' + c.perWalletLimit.toString() + '</span></div>' +
+        '<div class="r"><span class="k">Starts</span><span class="v">' + fmtUTC(c.startTime) + '</span></div>' +
+        '<div class="r"><span class="k">Ends</span><span class="v">' + fmtUTC(c.endTime) + '</span></div>' +
+        '<div class="r"><span class="k">Creator</span><span class="v">' + shortAddr(c.creator) + '</span></div>' +
+        (mine !== null ? '<div class="r"><span class="k">Your claims</span><span class="v">' + mine.toString() + '</span></div>' : '') +
+      '</div>' + claimBtn +
+      '<div class="status" id="campStatus' + it.id + '"></div>';
+    grid.appendChild(card);
+  });
+  list.appendChild(grid);
+  grid.querySelectorAll('[data-claim]').forEach(btn => {
+    btn.addEventListener('click', () => claimFromCampaign(Number(btn.getAttribute('data-claim'))));
+  });
+}
+
+function renderMyClaims(){
+  const box = $('myClaims');
+  if(!account){
+    box.innerHTML = '<div class="empty" style="border:0;padding:6px">Connect your wallet to see your claims.</div>';
+    return;
+  }
+  const rows = [];
+  campaigns.forEach(it => {
+    const n = myClaimCounts[it.id] ?? 0n;
+    if(n > 0n){
+      const total = n * it.data.amountPerClaim;
+      rows.push('<div class="r"><span class="k">Campaign #' + it.id + ' · ' + it.meta.symbol + '</span><span class="v">' +
+        n.toString() + ' claim' + (n > 1n ? 's' : '') + ' · ' + fmtAmt(total, it.meta.decimals) + ' ' + it.meta.symbol + ' received</span></div>');
+    }
+  });
+  if(badgeState && badgeState.claimed){
+    rows.push('<div class="r"><span class="k">AgentClaim Pioneer Badge</span><span class="v">1 badge claimed ✓</span></div>');
+  }
+  box.innerHTML = rows.length ? rows.join('') :
+    '<div class="empty" style="border:0;padding:6px">No claims yet for ' + shortAddr(account) + '.</div>';
+}
+
+// ---- wallet ----
+async function ensureBsc(){
+  const net = await browserProvider.getNetwork();
+  if(net.chainId === 56n) return;
+  try{
+    await browserProvider.send('wallet_switchEthereumChain', [{ chainId: '0x38' }]);
+  }catch(e){
+    if(e.code === 4902 || (e.info && e.info.error && e.info.error.code === 4902)){
+      await browserProvider.send('wallet_addEthereumChain', [{
+        chainId: '0x38', chainName: 'BNB Smart Chain',
+        nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+        rpcUrls: ['https://bsc-dataseed.binance.org'],
+        blockExplorerUrls: ['https://bscscan.com']
+      }]);
+    } else { throw e; }
+  }
+}
+
+async function connect(){
+  const st = $('walletStatus');
+  if(!window.ethereum){
+    st.className = 'status err';
+    st.textContent = 'No EVM wallet found in this browser. Open this page inside a wallet browser (e.g. your wallet app\u2019s built-in browser) or install a browser wallet extension.';
+    return;
+  }
+  try{
+    browserProvider = new ethers.BrowserProvider(window.ethereum);
+    await browserProvider.send('eth_requestAccounts', []);
+    await ensureBsc();
+    signer = await browserProvider.getSigner();
+    account = await signer.getAddress();
+    $('btnConnect').style.display = 'none';
+    $('btnConnectTop').style.display = 'none';
+    st.className = 'status';
+    st.textContent = 'Connected: ' + account + ' — checking Agent ID…';
+    await refreshEligibility();
+    await Promise.all([loadBadge(), loadCampaigns()]);
+  }catch(e){
+    st.className = 'status err';
+    st.textContent = errMsg(e);
+  }
+}
+
+async function refreshEligibility(){
+  const line = $('eligLine'), st = $('walletStatus');
+  try{
+    const bal = await regRead.balanceOf(account);
+    eligible = bal > 0n;
+    if(eligible){
+      line.innerHTML = 'Wallet <span style="color:var(--dim)">' + shortAddr(account) + '</span> · Agent ID: <span class="yes">held ✓</span>';
+      st.className = 'status ok';
+      st.textContent = 'This wallet holds an Agent ID — it can claim from every campaign on this page.';
+    }else{
+      line.innerHTML = 'Wallet <span style="color:var(--dim)">' + shortAddr(account) + '</span> · Agent ID: <span class="no">not held ✗</span>';
+      st.className = 'status';
+      st.textContent = 'This wallet does not hold an Agent ID yet, so the contracts will reject its claims. Claim your Agent ID (name.ai) inside the Binance app, then reconnect the same wallet.';
+    }
+  }catch(e){
+    eligible = null;
+    line.textContent = 'Could not read Agent ID status from the registry.';
+    st.className = 'status err'; st.textContent = errMsg(e);
+  }
+  renderBadgeButton();
+  renderCampaigns();
+}
+
+// ---- transactions ----
+async function claimFromCampaign(id){
+  const st = $('campStatus' + id);
+  if(!signer){ st.className = 'status err'; st.textContent = 'Connect your wallet first.'; return; }
+  try{
+    await ensureBsc();
+    st.className = 'status'; st.textContent = 'Confirm the claim in your wallet…';
+    const hub = new ethers.Contract(HUB, HUB_ABI, signer);
+    const tx = await hub.claim(id);
+    st.textContent = 'Broadcasted — waiting for confirmation…';
+    await tx.wait();
+    st.className = 'status ok';
+    st.innerHTML = 'Claimed ✓ Tx: <a href="https://bscscan.com/tx/' + tx.hash + '" target="_blank" rel="noopener">' + tx.hash.slice(0, 18) + '…</a>';
+    loadStats(); loadCampaigns();
+  }catch(e){
+    st.className = 'status err'; st.textContent = errMsg(e);
+  }
+}
+
+$('btnBadge').addEventListener('click', async () => {
+  const st = $('badgeStatus');
+  if(!signer) return;
+  try{
+    await ensureBsc();
+    st.className = 'status'; st.textContent = 'Confirm the claim in your wallet…';
+    const badge = new ethers.Contract(BADGE, BADGE_ABI, signer);
+    const tx = await badge.claimBadge();
+    st.textContent = 'Broadcasted — waiting for confirmation…';
+    await tx.wait();
+    st.className = 'status ok';
+    st.innerHTML = 'Badge claimed ✓ Tx: <a href="https://bscscan.com/tx/' + tx.hash + '" target="_blank" rel="noopener">' + tx.hash.slice(0, 18) + '…</a>';
+    loadStats(); loadBadge(); loadCampaigns();
+  }catch(e){
+    st.className = 'status err'; st.textContent = errMsg(e);
+  }
+});
+
+$('btnConnect').addEventListener('click', connect);
+$('btnConnectTop').addEventListener('click', connect);
+$('btnRefresh').addEventListener('click', () => { loadStats(); loadBadge(); loadCampaigns(); });
+
+if(window.ethereum){
+  window.ethereum.on('accountsChanged', () => location.reload());
+  window.ethereum.on('chainChanged', () => location.reload());
+}
+
+// ---- create campaign ----
+let createMeta = null;
+$('fToken').addEventListener('change', async () => {
+  const info = $('tokenInfo');
+  const addr = $('fToken').value.trim();
+  createMeta = null;
+  if(!ethers.isAddress(addr)){ info.className = 'status err'; info.textContent = 'That does not look like a valid token address.'; return; }
+  try{
+    createMeta = await tokenMeta(addr);
+    let extra = '';
+    if(account){
+      const c = new ethers.Contract(addr, ERC20_ABI, readProvider);
+      const [bal, alw] = await Promise.all([c.balanceOf(account), c.allowance(account, HUB)]);
+      extra = ' · your balance: ' + fmtAmt(bal, createMeta.decimals) + ' · current hub allowance: ' + fmtAmt(alw, createMeta.decimals);
+    }
+    info.className = 'status';
+    info.textContent = 'Token: ' + createMeta.symbol + ' · decimals: ' + createMeta.decimals + extra;
+  }catch(e){
+    info.className = 'status err'; info.textContent = 'Could not read that token contract.';
+  }
+});
+
+$('createForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const st = $('createStatus');
+  const fail = msg => { st.className = 'status err'; st.textContent = msg; };
+  if(!signer){ fail('Connect your wallet first — the campaign is created from your wallet and funded by it.'); return; }
+  const token = $('fToken').value.trim();
+  if(!ethers.isAddress(token)) return fail('Enter a valid token contract address.');
+  const meta = createMeta || await tokenMeta(token);
+  let perClaim, total;
+  try{
+    perClaim = ethers.parseUnits($('fPerClaim').value.trim(), meta.decimals);
+    total = ethers.parseUnits($('fTotal').value.trim(), meta.decimals);
+  }catch(e){ return fail('Amounts must be valid numbers.'); }
+  if(perClaim <= 0n) return fail('Amount per claim must be above zero.');
+  if(total < perClaim) return fail('Total allocation must be at least one claim amount.');
+  const startVal = $('fStart').value, endVal = $('fEnd').value;
+  if(!startVal || !endVal) return fail('Set both a start and an end time.');
+  const start = Math.floor(new Date(startVal).getTime() / 1000);
+  const end = Math.floor(new Date(endVal).getTime() / 1000);
+  if(!(end > start)) return fail('End time must be after the start time.');
+  if(end <= Math.floor(Date.now() / 1000)) return fail('End time is already in the past.');
+  const limit = parseInt($('fLimit').value, 10);
+  if(!Number.isInteger(limit) || limit < 1) return fail('Per-wallet limit must be a whole number of at least 1.');
+
+  try{
+    await ensureBsc();
+    const erc = new ethers.Contract(token, ERC20_ABI, signer);
+    const bal = await erc.balanceOf(account);
+    if(bal < total) return fail('Your balance of ' + meta.symbol + ' is below the total allocation.');
+    const alw = await erc.allowance(account, HUB);
+    if(alw < total){
+      st.className = 'status';
+      st.textContent = 'Step 1 of 2 — approve the hub to pull exactly ' + fmtAmt(total, meta.decimals) + ' ' + meta.symbol + '. Confirm in your wallet…';
+      const atx = await erc.approve(HUB, total);
+      await atx.wait();
+    }
+    st.className = 'status';
+    st.textContent = 'Step 2 of 2 — creating the campaign (this pulls the allocation into the hub). Confirm in your wallet…';
+    const hub = new ethers.Contract(HUB, HUB_ABI, signer);
+    const tx = await hub.createCampaign(token, perClaim, total, start, end, limit);
+    const rc = await tx.wait();
+    st.className = 'status ok';
+    st.innerHTML = 'Campaign created ✓ Tx: <a href="https://bscscan.com/tx/' + tx.hash + '" target="_blank" rel="noopener">' + tx.hash.slice(0, 18) + '…</a> — it appears in the list above.';
+    loadStats(); loadCampaigns();
+  }catch(e){
+    fail(errMsg(e));
+  }
+});
+
+// ---- init ----
+loadStats();
+loadBadge();
+loadCampaigns();
+setInterval(() => { loadStats(); loadBadge(); loadCampaigns(); }, 60000);
+</script>
+</body>
+</html>
